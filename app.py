@@ -127,9 +127,11 @@ with col1:
                     result = {
                         "disease": mock_diseases[selected_lang],
                         "confidence": 0.924,
+                        "uncertainty": 0.042,
                         "severity": "Quarantine",
                         "severity_score": 0.78,
-                        "recommendation": mock_recs[selected_lang]
+                        "recommendation": mock_recs[selected_lang],
+                        "architecture": "BenamNet v2.0 (Triple Backbone)"
                     }
                     st.session_state['result'] = result
                 except Exception as e:
@@ -141,21 +143,25 @@ with col2:
         res = st.session_state['result']
         
         st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.markdown(f"### 🔍 Analysis Result: {res['disease']}")
+        st.markdown(f"## {res['disease']}")
+        st.markdown(f"**Architecture:** `{res.get('architecture', 'v1.0')}`")
         
-        # Severity Badge
-        severity_class = res['severity'].lower()
-        st.markdown(f'<span class="status-badge {severity_class}">{res["severity"]}</span>', unsafe_allow_html=True)
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Confidence", f"{res['confidence']*100:.1f}%")
+        
+        # Reliability = 1 - Uncertainty
+        reliability = (1 - res.get('uncertainty', 0)) * 100
+        m2.metric("Reliability", f"{reliability:.1f}%")
+        
+        severity_color = {"Healthy": "#00ff9d", "Mild": "#ffeb3b", "Moderate": "#ff9800", "Quarantine": "#f44336", "Emergency": "#b71c1c"}
+        m3.markdown(f"<div style='text-align:center'><span style='color:{severity_color.get(res['severity'], '#fff')}'>●</span> {res['severity']}</div>", unsafe_allow_html=True)
         
         st.markdown("---")
-        
-        # Metrics
-        m1, m2 = st.columns(2)
-        m1.metric("Model Confidence", f"{res['confidence']*100:.1f}%")
-        m2.metric("Severity Score", f"{res['severity_score']:.2f}/1.0")
-        
-        st.markdown("#### 🛠 Treatment Recommendation")
+        st.markdown("#### 💊 Treatment Plan")
         st.success(res['recommendation'])
+        
+        if res.get('uncertainty', 0) > 0.15:
+            st.warning("⚠️ High uncertainty detected. Manual veterinary review recommended.")
         
         st.markdown("#### 🗺 Explainability (Grad-CAM++)")
         if 'heatmap_b64' in res:

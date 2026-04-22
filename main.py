@@ -87,7 +87,17 @@ def get_recommendation(disease, severity, lang="en"):
     return p + rec
 
 import base64
+from models.dual_backbone import BenamNetV2
 from utils.preprocessing import preprocess_image, overlay_heatmap
+
+# Initialize Model (Layer 2 & 3)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = BenamNetV2(num_classes=7)
+# Load weights if available
+if os.path.exists("best_benam_model.pth"):
+    model.load_state_dict(torch.load("best_benam_model.pth", map_location=device))
+model.to(device)
+model.eval()
 
 def image_to_base64(image):
     buffered = io.BytesIO()
@@ -107,13 +117,13 @@ async def predict(file: UploadFile = File(...), lang: str = "en"):
         input_tensor = torch.from_numpy(np.array(processed_img)).permute(2, 0, 1).float().unsqueeze(0) / 255.0
         input_tensor = input_tensor.to(device)
         
-        # 1. Prediction
+        # 1. Prediction with Uncertainty (Layer 5)
         with torch.no_grad():
-            output = model(input_tensor)
+            output = model.predict_with_uncertainty(input_tensor, n_passes=5)
             
-        logits = output["logits"]
-        probs = F.softmax(logits, dim=1)
+        probs = output["logits"]
         conf, pred_idx = torch.max(probs, dim=1)
+        uncertainty = output["uncertainty"].item()
         
         severity_val = output["severity"].item()
         severity_idx = int(severity_val * 3)
@@ -127,10 +137,12 @@ async def predict(file: UploadFile = File(...), lang: str = "en"):
         return {
             "disease": disease_name,
             "confidence": round(conf.item(), 4),
+            "uncertainty": round(uncertainty, 4),
             "severity": SEVERITY_LEVELS[severity_idx],
             "severity_score": round(severity_val, 4),
             "recommendation": get_recommendation(disease_name, SEVERITY_LEVELS[severity_idx], lang),
-            "heatmap_b64": heatmap_base64
+            "heatmap_b64": heatmap_base64,
+            "architecture": "BenamNet v2.0 (Triple Backbone)"
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
