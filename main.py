@@ -1,11 +1,12 @@
 import io
+import os
 import torch
 import torch.nn.functional as F
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 import numpy as np
-from models.dual_backbone import BenamNet
+from models.dual_backbone import BenamNetV2
 from utils.preprocessing import preprocess_image
 import uvicorn
 
@@ -19,11 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize Model (Layer 2 & 3)
-# In production, we'd load weights here.
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = BenamNet(num_classes=7).to(device)
-model.eval()
+
 
 CLASSES = [
     "Bacterial Red disease", 
@@ -38,7 +35,7 @@ SEVERITY_LEVELS = ["Mild", "Moderate", "Quarantine", "Emergency"]
 
 @app.get("/")
 async def health_check():
-    return {"status": "operational", "model": "BenamNet-v1 (Dual Backbone)"}
+    return {"status": "operational", "model": "BenamNet-v2.0 (Ultra-Lightweight)"}
 
 def get_recommendation(disease, severity, lang="en"):
     """
@@ -106,8 +103,8 @@ def image_to_base64(image):
 
 @app.post("/predict")
 async def predict(file: UploadFile = File(...), lang: str = "en"):
-    if not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Invalid file type")
+    if file.content_type is None or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Invalid file type. Please upload an image.")
 
     try:
         contents = await file.read()

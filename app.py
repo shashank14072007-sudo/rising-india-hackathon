@@ -109,7 +109,8 @@ with col1:
                 # Real API call to backend (now includes lang)
                 try:
                     import requests
-                    response = requests.post(f"http://localhost:8000/predict?lang={selected_lang}", files={"file": uploaded_file.getvalue()})
+                    files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
+                    response = requests.post(f"http://localhost:8000/predict?lang={selected_lang}", files=files)
                     if response.status_code == 200:
                         st.session_state['result'] = response.json()
                     else:
