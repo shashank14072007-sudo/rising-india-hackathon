@@ -1,293 +1,316 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  Zap, Shield, Activity, Droplets, Thermometer, Wind, 
+  CheckCircle2, AlertCircle, RefreshCw, Languages, Search, 
+  Cpu, Network, Database
+} from "lucide-react";
 
-/* ───────── DISEASE DATA (Mapped to API CLASSES) ───────── */
+/* ───────── CONFIG ───────── */
+const API_BASE = "http://localhost:8000";
+
 const CLASSES_MAP = {
-  "Bacterial Red disease": { emoji: "🔴", cure: "💊 Improve water quality + Medicated feed", color: "#ff8fa3", bg: "#fff0f3", severity: 3, tip: "Red spots or streaks on body/fins." },
-  "Bacterial diseases - Aeromoniasis": { emoji: "🦠", cure: "🧪 Isolate fish + Increase aeration", color: "#ffb347", bg: "#fff3e0", severity: 4, tip: "Swollen belly or ulcers detected." },
-  "Bacterial gill disease": { emoji: "🫁", cure: "🧼 Clean filters + Salt baths", color: "#a8d8ff", bg: "#e8f4ff", severity: 3, tip: "Fish gasping at surface or flared gills." },
-  "Fungal diseases Saprolegniasis": { emoji: "🍄", cure: "🧂 Remove debris + Salt/Antifungal", color: "#c8a2ff", bg: "#f3eeff", severity: 2, tip: "Cotton-like white growth on body." },
-  "Healthy Fish": { emoji: "🌟", cure: "🥰 Keep up the great care!", color: "#88e788", bg: "#efffef", severity: 0, tip: "No disease detected. Your fish is thriving!" },
-  "Parasitic diseases": { emoji: "🔍", cure: "🩹 Identify parasite + Targeted meds", color: "#ffe599", bg: "#fffbeb", severity: 2, tip: "Fish rubbing against objects (flashing)." },
-  "Viral diseases White tail disease": { emoji: "🧬", cure: "🚨 Strict quarantine + Biosecurity", color: "#ff5577", bg: "#fff0f3", severity: 4, tip: "Whitish tail/body with high mortality." }
+  "Bacterial Red disease": { emoji: "🔴", cure: "💊 Improve water quality + Medicated feed", color: "#ff4d4d", bg: "rgba(255, 77, 77, 0.1)", severity: 3, tip: "Red spots or streaks on body/fins." },
+  "Bacterial diseases - Aeromoniasis": { emoji: "🦠", cure: "🧪 Isolate fish + Increase aeration", color: "#ffaa00", bg: "rgba(255, 170, 0, 0.1)", severity: 4, tip: "Swollen belly or ulcers detected." },
+  "Bacterial gill disease": { emoji: "🫁", cure: "🧼 Clean filters + Salt baths", color: "#00d4ff", bg: "rgba(0, 212, 255, 0.1)", severity: 3, tip: "Fish gasping at surface or flared gills." },
+  "Fungal diseases Saprolegniasis": { emoji: "🍄", cure: "🧂 Remove debris + Salt/Antifungal", color: "#a855f7", bg: "rgba(168, 85, 247, 0.1)", severity: 2, tip: "Cotton-like white growth on body." },
+  "Healthy Fish": { emoji: "🌟", cure: "🥰 Keep up the great care!", color: "#00ff9d", bg: "rgba(0, 255, 157, 0.1)", severity: 0, tip: "No disease detected. Your fish is thriving!" },
+  "Parasitic diseases": { emoji: "🔍", cure: "🩹 Identify parasite + Targeted meds", color: "#fbbf24", bg: "rgba(251, 191, 36, 0.1)", severity: 2, tip: "Fish rubbing against objects (flashing)." },
+  "Viral diseases White tail disease": { emoji: "🧬", cure: "🚨 Strict quarantine + Biosecurity", color: "#ef4444", bg: "rgba(239, 68, 68, 0.1)", severity: 4, tip: "Whitish tail/body with high mortality." }
 };
 
-/* ───────── CUTE FISH SVG ───────── */
-const CuteFish = ({ color = "#6EC6FF", size = 80, wiggle = false, sad = false, style = {} }) => (
-  <svg width={size} height={size * 0.65} viewBox="0 0 120 78" fill="none"
-    style={{ ...style, animation: wiggle ? "fishWiggle 0.6s ease-in-out infinite alternate" : undefined }}>
-    <path d="M95 39 L120 18 L120 60 Z" fill={color} opacity="0.8" />
-    <ellipse cx="55" cy="39" rx="48" ry="28" fill={color} />
-    <ellipse cx="50" cy="44" rx="32" ry="16" fill="white" opacity="0.25" />
-    <circle cx="26" cy="32" r="10" fill="white" />
-    <circle cx={sad ? "24" : "27"} cy={sad ? "34" : "31"} r="6" fill="#1a1a2e" />
-    <circle cx={sad ? "26" : "29"} cy={sad ? "32" : "29"} r="2.5" fill="white" />
-    {sad
-      ? <path d="M18 46 Q22 44 26 46" stroke="#1a1a2e" strokeWidth="1.5" strokeLinecap="round" fill="none" />
-      : <path d="M16 44 Q20 48 25 45" stroke="#1a1a2e" strokeWidth="1.5" strokeLinecap="round" fill="none" />}
-    <path d="M45 11 Q55 2 70 11" stroke={color} strokeWidth="3" fill="none" opacity="0.7" />
-    <circle cx="60" cy="35" r="4" fill="white" opacity="0.3" />
-    <circle cx="72" cy="42" r="3" fill="white" opacity="0.2" />
-    <circle cx="48" cy="28" r="2.5" fill="white" opacity="0.3" />
-  </svg>
-);
-
-/* ───────── BUBBLE ───────── */
-const Bubble = ({ size, left, duration, delay, color = "rgba(255,255,255,0.4)" }) => (
-  <div style={{
-    position: "fixed", bottom: -40, left: `${left}%`,
-    width: size, height: size, borderRadius: "50%",
-    background: `radial-gradient(circle at 30% 30%, ${color}, transparent)`,
-    border: `1.5px solid ${color}`,
-    animation: `bubbleRise ${duration}s ease-in infinite`,
-    animationDelay: `${delay}s`,
-    pointerEvents: "none", zIndex: 0,
-  }} />
-);
-
-/* ───────── SEAWEED ───────── */
-const Seaweed = ({ x, height, color, delay }) => (
-  <div style={{
-    position: "fixed", bottom: 0, left: `${x}%`,
-    width: 18, height, transformOrigin: "bottom center",
-    animation: `sway 3s ease-in-out infinite alternate`,
-    animationDelay: `${delay}s`,
-    pointerEvents: "none", zIndex: 1,
-  }}>
-    {Array.from({ length: Math.floor(height / 22) }, (_, i) => (
-      <div key={i} style={{
-        width: 16, height: 22,
-        background: color,
-        borderRadius: i % 2 === 0 ? "50% 50% 50% 0" : "50% 50% 0 50%",
-        marginLeft: i % 2 === 0 ? 0 : 4,
-        marginBottom: -4,
-        opacity: 0.7 + i * 0.04,
-      }} />
-    ))}
+/* ───────── COMPONENTS ───────── */
+const LayerBadge = ({ label, status = "Active", icon: Icon }) => (
+  <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-xl">
+    <Icon size={12} className="text-benam-accent" />
+    <div className="flex flex-col">
+      <span className="text-[8px] text-slate-500 uppercase tracking-tighter leading-none">{label}</span>
+      <span className="text-[10px] font-bold text-benam-accent2 font-mono leading-none">{status}</span>
+    </div>
   </div>
 );
 
-/* ───────── STAR PARTICLE ───────── */
-const Sparkle = ({ x, y, delay, color }) => (
-  <div style={{
-    position: "fixed", left: `${x}%`, top: `${y}%`,
-    fontSize: 14, animation: `twinkle 2s ease-in-out infinite`,
-    animationDelay: `${delay}s`, pointerEvents: "none", zIndex: 0,
-    color, userSelect: "none",
-  }}>✦</div>
+const CuteFish = ({ color = "#00d4ff", size = 80, wiggle = false, sad = false }) => (
+  <svg width={size} height={size * 0.65} viewBox="0 0 120 78" fill="none"
+    style={{ animation: wiggle ? "fishWiggle 0.6s ease-in-out infinite alternate" : undefined }}>
+    <path d="M95 39 L120 18 L120 60 Z" fill={color} opacity="0.8" />
+    <ellipse cx="55" cy="39" rx="48" ry="28" fill={color} />
+    <circle cx="26" cy="32" r="10" fill="white" />
+    <circle cx={sad ? "24" : "27"} cy={sad ? "34" : "31"} r="6" fill="#040a0f" />
+    {sad ? <path d="M18 46 Q22 44 26 46" stroke="#040a0f" strokeWidth="2" fill="none" /> : <path d="M16 44 Q20 48 25 45" stroke="#040a0f" strokeWidth="2" fill="none" />}
+  </svg>
 );
 
 export default function App() {
   const [screen, setScreen] = useState("home");
-  const [dragOver, setDragOver] = useState(false);
   const [imgUrl, setImgUrl] = useState(null);
   const [progress, setProgress] = useState(0);
   const [phase, setPhase] = useState(0);
   const [result, setResult] = useState(null);
   const [lang, setLang] = useState("en");
-  const [fishMood, setFishMood] = useState("happy");
-  const [scanDots, setScanDots] = useState(0);
-  const [showConfetti, setShowConfetti] = useState(false);
+  const [loading, setLoading] = useState(false);
   const fileRef = useRef();
-  const timerRef = useRef();
 
   const phases = [
-    "Saying hello to your fish 👋",
-    "Checking fin health 🔍",
-    "Counting scale patterns 🔢",
-    "Inspecting those cute eyes 👁️",
-    "Analyzing skin color 🎨",
-    "Running 11-Layer AI magic ✨",
-    "Consulting fish encyclopedia 📖",
-    "Calculating reliability 📊",
-    "Almost done! 🐟",
-    "Writing your report 📋",
+    "L1: Bio-Signal Ingestion",
+    "L2: Triple Backbone Extraction",
+    "L3: Gated Feature Fusion",
+    "L4: Turbulence Augmentation",
+    "L5: Pathology Localization",
+    "L6: Concept Bottleneck Analysis",
+    "L8: MC-Dropout Uncertainty Calc",
+    "L9: IoT Environmental Sync",
+    "L10: Edge Deployment Prep",
+    "L11: Federated Node Handshake"
   ];
 
-  const bubbles = Array.from({ length: 22 }, (_, i) => ({
-    size: 6 + Math.random() * 18,
-    left: Math.random() * 100,
-    duration: 5 + Math.random() * 7,
-    delay: Math.random() * 9,
-    color: ["rgba(168,216,255,0.5)", "rgba(200,162,255,0.4)", "rgba(255,200,230,0.4)", "rgba(130,235,200,0.4)"][i % 4],
-  }));
-  const seaweeds = [
-    { x: 2, height: 100, color: "#4ecb8d", delay: 0 },
-    { x: 6, height: 70, color: "#35b87a", delay: 0.5 },
-    { x: 92, height: 90, color: "#4ecb8d", delay: 0.8 },
-    { x: 96, height: 60, color: "#35b87a", delay: 0.3 },
-    { x: 15, height: 55, color: "#5dd4a0", delay: 1.1 },
-    { x: 85, height: 75, color: "#3ec98a", delay: 0.7 },
-  ];
-  const sparkles = Array.from({ length: 16 }, (_, i) => ({
-    x: Math.random() * 100, y: Math.random() * 80,
-    delay: Math.random() * 3,
-    color: ["#a8d8ff", "#ffb3c6", "#c8a2ff", "#88e7c8", "#ffe599"][i % 5],
-  }));
-
-  useEffect(() => {
-    const id = setInterval(() => setScanDots(d => (d + 1) % 4), 400);
-    return () => clearInterval(id);
-  }, []);
-
-  const startScan = async (file) => {
-    if (!file || !file.type.startsWith("image/")) return;
+  const handleUpload = async (file) => {
+    if (!file) return;
     setImgUrl(URL.createObjectURL(file));
     setScreen("scan");
-    setProgress(0);
-    setPhase(0);
-    setFishMood("nervous");
+    setLoading(true);
 
-    // Start UI Progress Simulation
     let p = 0;
-    const progressInterval = setInterval(() => {
-      p += 0.5;
-      if (p > 95) p = 95; // Wait for API at 95%
+    const interval = setInterval(() => {
+      p += 0.8;
+      if (p > 98) p = 98;
       setProgress(p);
-      setPhase(Math.min(9, Math.floor((p / 100) * 10)));
-    }, 50);
+      setPhase(Math.min(9, Math.floor(p / 10)));
+    }, 40);
 
-    // Call Real API
     const formData = new FormData();
     formData.append("file", file);
+
     try {
-      const response = await axios.post(`http://localhost:8000/predict?lang=${lang}`, formData);
-      const apiResult = response.data;
-      const meta = CLASSES_MAP[apiResult.disease] || CLASSES_MAP["Healthy Fish"];
-      
-      clearInterval(progressInterval);
+      const res = await axios.post(`${API_BASE}/predict?lang=${lang}`, formData);
+      clearInterval(interval);
       setProgress(100);
       setPhase(9);
-
       setTimeout(() => {
-        setResult({ 
-            ...apiResult, 
-            meta, 
-            confidence: (apiResult.confidence * 100).toFixed(1),
-            reliability: ((1 - apiResult.uncertainty) * 100).toFixed(1)
-        });
-        setFishMood(apiResult.disease === "Healthy Fish" ? "happy" : "sad");
+        setResult({ ...res.data, meta: CLASSES_MAP[res.data.disease] || CLASSES_MAP["Healthy Fish"] });
         setScreen("result");
-        if (apiResult.disease === "Healthy Fish") { 
-            setShowConfetti(true); 
-            setTimeout(() => setShowConfetti(false), 3000); 
-        }
+        setLoading(false);
       }, 500);
-
     } catch (err) {
-      clearInterval(progressInterval);
-      alert("Connection Error: Is the Benam Engine running?");
+      clearInterval(interval);
+      alert("Engine Error: Ensure backend is running at localhost:8000");
       setScreen("home");
     }
   };
 
-  const reset = () => { setScreen("home"); setImgUrl(null); setResult(null); setProgress(0); setFishMood("happy"); };
-
   return (
-    <div style={{ minHeight: "100vh", fontFamily: "'Nunito', sans-serif", position: "relative", overflow: "hidden",
-      background: "linear-gradient(180deg, #c8eeff 0%, #a8d8f8 25%, #b8eeff 55%, #d0f5e8 85%, #b8f0d8 100%)" }}>
-
+    <div className="min-h-screen bg-[#040a0f] text-slate-100 font-sans selection:bg-[#00d4ff]/30 overflow-x-hidden">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        @keyframes bubbleRise { 0% { transform: translateY(0) scale(1); opacity: 0.8; } 100% { transform: translateY(-110vh) scale(0.5); opacity: 0; } }
-        @keyframes sway { from { transform: rotate(-8deg); } to { transform: rotate(8deg); } }
-        @keyframes twinkle { 0%,100% { opacity: 0.2; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.4); } }
-        @keyframes fishWiggle { from { transform: rotate(-4deg) translateY(0px); } to { transform: rotate(4deg) translateY(-5px); } }
-        @keyframes floatBob { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-12px); } }
-        @keyframes popIn { 0% { opacity: 0; transform: scale(0.5); } 100% { opacity: 1; transform: scale(1); } }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(50px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes shimmerBar { 0% { background-position: -200px center; } 100% { background-position: 400px center; } }
-        @keyframes waveMove { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-        .cute-btn { font-family: 'Fredoka One', cursive; border: none; border-radius: 50px; padding: 14px 34px; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
-        .cute-btn:hover { transform: translateY(-3px) scale(1.04); }
-        .card { background: rgba(255,255,255,0.72); backdrop-filter: blur(12px); border-radius: 24px; border: 2.5px solid rgba(255,255,255,0.9); box-shadow: 0 8px 32px rgba(100,180,255,0.18); }
+        @keyframes fishWiggle { from { transform: rotate(-4deg); } to { transform: rotate(4deg); } }
+        .glass { background: rgba(10, 21, 32, 0.6); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .glow-blue { box-shadow: 0 0 30px rgba(0, 212, 255, 0.15); }
+        .text-gradient { background: linear-gradient(90deg, #00d4ff, #00ff9d); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
       `}</style>
 
-      {bubbles.map((b, i) => <Bubble key={i} {...b} />)}
-      {seaweeds.map((s, i) => <Seaweed key={i} {...s} />)}
-      {sparkles.map((s, i) => <Sparkle key={i} {...s} />)}
+      {/* Decorative BG */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-1/2 h-1/2 bg-[#00d4ff]/5 blur-[120px] rounded-full" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-1/2 h-1/2 bg-[#00ff9d]/5 blur-[120px] rounded-full" />
+      </div>
 
-      <header style={{ width: "100%", padding: "16px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.55)", backdropFilter: "blur(12px)", borderBottom: "2px solid rgba(255,255,255,0.8)", zIndex: 100 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ animation: "floatBob 2.5s ease-in-out infinite" }}><CuteFish color="#6EC6FF" size={48} wiggle /></div>
+      {/* Nav */}
+      <header className="relative z-50 px-6 py-4 flex justify-between items-center border-b border-white/5 backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-[#00d4ff] to-[#00ff9d] rounded-xl flex items-center justify-center glow-blue">
+            <Activity size={24} className="text-black" />
+          </div>
           <div>
-            <div style={{ fontFamily: "'Fredoka One', cursive", fontSize: 22, color: "#3a9fd6" }}>FishyDoc 🩺</div>
-            <div style={{ fontSize: 11, color: "#7ec8f0", fontWeight: 700, letterSpacing: 1 }}>AI FISH DIAGNOSTICS</div>
+            <h1 className="text-xl font-black tracking-tighter italic">BENAM <span className="text-[#00d4ff]">ULTRA</span></h1>
+            <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">Enterprise Architecture v2.0</p>
           </div>
         </div>
-        <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ padding: "6px 12px", borderRadius: "12px", border: "1px solid #ddd", outline: "none" }}>
+
+        <div className="flex items-center gap-4">
+          <div className="hidden md:flex gap-2">
+            <LayerBadge label="L10: Edge" status="Optimized" icon={Cpu} />
+            <LayerBadge label="L11: Federated" status="Node-7 Active" icon={Network} />
+          </div>
+          <select 
+            value={lang} 
+            onChange={(e) => setLang(e.target.value)}
+            className="bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-xs font-bold outline-none focus:border-[#00d4ff]"
+          >
             <option value="en">English</option>
             <option value="hi">हिंदी</option>
             <option value="mr">मराठी</option>
-        </select>
+          </select>
+        </div>
       </header>
 
-      {screen === "home" && (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 32, padding: "40px 20px", zIndex: 10, position: "relative" }}>
-          <div style={{ textAlign: "center", animation: "popIn 0.7s forwards" }}>
-            <div style={{ animation: "floatBob 3s ease-in-out infinite", marginBottom: 8, display: "inline-block" }}><CuteFish color="#6EC6FF" size={110} wiggle /></div>
-            <h1 style={{ fontFamily: "'Fredoka One', cursive", fontSize: "clamp(28px,6vw,52px)", background: "linear-gradient(135deg, #3a9fd6, #7b5ea7, #e87d9b)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-              Hi! I'm FishyDoc 🐠💕<br />Your fish's best friend!
-            </h1>
-          </div>
-          <div className="card" style={{ width: "100%", maxWidth: 560, padding: "44px 32px", textAlign: "center", border: "3px dashed #a8d8ff", cursor: "pointer" }} onClick={() => fileRef.current.click()}>
-            <div style={{ fontSize: 64, marginBottom: 12 }}>📸</div>
-            <div style={{ fontFamily: "'Fredoka One', cursive", fontSize: 22, color: "#3a9fd6" }}>Drop fish photo here!</div>
-            <button className="cute-btn" style={{ background: "linear-gradient(135deg, #6EC6FF, #5aaae8)", color: "white", marginTop: 20 }}>📷 Choose Photo</button>
-            <input ref={fileRef} type="file" onChange={e => startScan(e.target.files[0])} style={{ display: "none" }} />
-          </div>
-        </div>
-      )}
-
-      {screen === "scan" && (
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "32px 20px", zIndex: 10 }}>
-          <div className="card" style={{ maxWidth: 500, width: "100%", padding: "36px 32px", textAlign: "center" }}>
-            <div style={{ animation: "floatBob 1.2s infinite", display: "inline-block" }}><CuteFish color="#6EC6FF" size={90} wiggle /></div>
-            <div style={{ fontFamily: "'Fredoka One', cursive", fontSize: 24, color: "#3a9fd6" }}>Examining fish{".".repeat(scanDots)}</div>
-            <div style={{ height: 14, borderRadius: 50, background: "#eee", overflow: "hidden", margin: "20px 0" }}>
-              <div style={{ height: "100%", width: `${progress}%`, background: "linear-gradient(90deg, #6EC6FF, #c8a2ff)", transition: "width 0.1s" }} />
+      {/* Main Content */}
+      <main className="relative z-10 max-w-7xl mx-auto p-6 min-h-[calc(100vh-80px)] flex items-center justify-center">
+        
+        {screen === "home" && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
+            <div className="mb-8 inline-block animate-bounce duration-[3000ms]">
+                <CuteFish size={120} wiggle />
             </div>
-            <div style={{ fontFamily: "'Fredoka One', cursive", fontSize: 15, color: "#3a9fd6" }}>{phases[phase]}</div>
-          </div>
-        </div>
-      )}
+            <h2 className="text-5xl md:text-7xl font-black mb-4 tracking-tighter leading-none text-gradient">
+              THE FUTURE OF <br />AQUACULTURE.
+            </h2>
+            <p className="text-slate-400 max-w-xl mx-auto mb-10 text-lg">
+              Powered by an 11-Layer Triple-Backbone Neural Engine. <br />
+              Deploying real-time diagnostics for global fish health.
+            </p>
+            
+            <div 
+              className="glass p-12 rounded-[40px] border-2 border-dashed border-[#00d4ff]/30 hover:border-[#00d4ff] transition-all cursor-pointer group"
+              onClick={() => fileRef.current.click()}
+            >
+              <div className="w-20 h-20 bg-[#00d4ff]/10 rounded-3xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
+                <RefreshCw size={40} className="text-[#00d4ff]" />
+              </div>
+              <h3 className="text-2xl font-bold mb-2">Ingest Bio-Signal</h3>
+              <p className="text-slate-500 text-sm">Drop fish image or click to initiate 11-layer scan</p>
+              <input type="file" ref={fileRef} className="hidden" onChange={(e) => handleUpload(e.target.files[0])} />
+            </div>
+          </motion.div>
+        )}
 
-      {screen === "result" && result && (
-        <div style={{ flex: 1, width: "100%", maxWidth: 900, padding: "40px 20px", display: "flex", flexDirection: "column", gap: 20, alignItems: "center", zIndex: 10, position: "relative" }}>
-          <div className="card" style={{ width: "100%", padding: "30px", background: result.meta.bg, border: `3px solid ${result.meta.color}`, textAlign: "center" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 20, flexWrap: "wrap" }}>
-              <CuteFish color={result.meta.color} size={90} sad={result.disease !== "Healthy Fish"} wiggle />
-              <div style={{ textAlign: "left" }}>
-                <div style={{ fontFamily: "'Fredoka One', cursive", fontSize: 28, color: "#2c5f8a" }}>{result.disease} {result.meta.emoji}</div>
-                <div style={{ fontSize: 14, color: "#5a8aaa", fontWeight: 700 }}>{result.meta.tip}</div>
-                <div style={{ marginTop: 10, display: "flex", gap: 10 }}>
-                    <div style={{ background: "white", padding: "5px 15px", borderRadius: "20px", fontSize: "12px", fontWeight: "bold" }}>🎯 {result.confidence}% Conf.</div>
-                    <div style={{ background: "white", padding: "5px 15px", borderRadius: "20px", fontSize: "12px", fontWeight: "bold" }}>📊 {result.reliability}% Rel.</div>
+        {screen === "scan" && (
+          <div className="w-full max-w-2xl text-center">
+            <div className="mb-12"><CuteFish size={100} wiggle /></div>
+            <h3 className="text-3xl font-black mb-8 italic tracking-tighter uppercase">{phases[phase]}</h3>
+            <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden border border-white/10 mb-6">
+              <motion.div 
+                className="h-full bg-gradient-to-r from-[#00d4ff] to-[#00ff9d] glow-blue"
+                initial={{ width: 0 }}
+                animate={{ width: `${progress}%` }}
+              />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 opacity-50">
+                {phases.map((p, i) => (
+                    <div key={i} className={`text-[9px] font-mono p-2 rounded-lg border ${i <= phase ? 'border-[#00ff9d] text-[#00ff9d]' : 'border-white/5'}`}>
+                        {p.split(':')[0]}
+                    </div>
+                ))}
+            </div>
+          </div>
+        )}
+
+        {screen === "result" && result && (
+          <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            {/* Left Col: Diagnostics */}
+            <div className="lg:col-span-7 space-y-6">
+              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="glass rounded-[40px] p-8 overflow-hidden relative">
+                <div className="absolute top-0 right-0 w-64 h-64 blur-[100px] opacity-20" style={{ background: result.meta.color }} />
+                
+                <div className="flex justify-between items-start mb-8">
+                  <div>
+                    <span className="text-xs font-mono text-slate-500 uppercase tracking-widest block mb-2">L7: Recommendation Engine</span>
+                    <h2 className="text-4xl md:text-5xl font-black tracking-tighter leading-none mb-2">{result.disease}</h2>
+                    <div className="flex gap-2">
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest`} style={{ background: result.meta.bg, color: result.meta.color }}>
+                            {result.severity} Severity
+                        </span>
+                        <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-white/5 text-slate-400 uppercase tracking-widest">
+                            L8: {((1-result.uncertainty)*100).toFixed(1)}% Reliable
+                        </span>
+                    </div>
+                  </div>
+                  <div className="text-5xl">{result.meta.emoji}</div>
                 </div>
+
+                <div className="bg-white/5 border border-white/10 rounded-3xl p-6 mb-8">
+                  <h4 className="flex items-center gap-2 text-sm font-bold mb-3 text-[#00ff9d]">
+                    <Shield size={16} /> ENTERPRISE TREATMENT PROTOCOL
+                  </h4>
+                  <p className="text-lg text-slate-200 leading-relaxed font-medium">{result.recommendation}</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="glass rounded-2xl p-5 border-white/5">
+                    <h5 className="text-[10px] font-bold text-slate-500 uppercase mb-4 tracking-widest">L6: Symptom Analysis (Bottleneck)</h5>
+                    <div className="space-y-3">
+                        {Object.entries(result.l6_concepts).map(([key, val]) => (
+                            <div key={key}>
+                                <div className="flex justify-between text-[10px] mb-1">
+                                    <span>{key}</span>
+                                    <span>{(val * 100).toFixed(0)}%</span>
+                                </div>
+                                <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                                    <div className="h-full bg-[#00d4ff]" style={{ width: `${val * 100}%` }} />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                  </div>
+                  <div className="glass rounded-2xl p-5 border-white/5">
+                    <h5 className="text-[10px] font-bold text-slate-500 uppercase mb-4 tracking-widest">L9: IoT Environmental Sync</h5>
+                    <div className="grid grid-cols-2 gap-3">
+                        {Object.entries(result.l9_iot_sync).map(([key, val]) => (
+                            <div key={key} className="bg-white/5 p-3 rounded-xl">
+                                <span className="text-[8px] text-slate-500 uppercase block">{key.replace('_', ' ')}</span>
+                                <span className="text-sm font-bold text-gradient">{val}</span>
+                            </div>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+
+              <div className="grid grid-cols-2 gap-4">
+                 <LayerBadge label="L10: Edge Compute" status="Active" icon={Cpu} />
+                 <LayerBadge label="L11: Federated Node" status="Synced" icon={Network} />
               </div>
             </div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, width: "100%" }}>
-            <div className="card" style={{ padding: 16 }}>
-              <div style={{ fontFamily: "'Fredoka One', cursive", fontSize: 14, color: "#3a9fd6", marginBottom: 10 }}>📸 Diagnostic View</div>
-              <img src={imgUrl} style={{ width: "100%", borderRadius: 12 }} />
-            </div>
-            <div className="card" style={{ padding: 16 }}>
-               <div style={{ fontFamily: "'Fredoka One', cursive", fontSize: 14, color: "#3a9fd6", marginBottom: 10 }}>🗺️ Pathology Heatmap</div>
-               <img src={`data:image/jpeg;base64,${result.heatmap_b64}`} style={{ width: "100%", borderRadius: 12 }} />
-            </div>
-          </div>
-          <div className="card" style={{ width: "100%", padding: 24, background: "#f0fff4", border: "2px solid #88e7c8" }}>
-              <div style={{ fontFamily: "'Fredoka One', cursive", color: "#2c8a5a", marginBottom: 10 }}>📋 Care Protocol</div>
-              <div style={{ fontSize: 16, fontWeight: "bold", color: "#3aaa6a" }}>{result.recommendation}</div>
-          </div>
-          <button className="cute-btn" onClick={reset} style={{ background: "linear-gradient(135deg, #6EC6FF, #5aaae8)", color: "white" }}>🐠 Check Another Fish</button>
-        </div>
-      )}
 
-      <footer style={{ width: "100%", padding: "20px", textAlign: "center", background: "rgba(255,255,255,0.5)", zIndex: 10 }}>
-        <span style={{ fontFamily: "'Fredoka One', cursive", fontSize: 13, color: "#5aabcc" }}>FishyDoc AI • 11-Layer Enterprise Architecture v2.0</span>
+            {/* Right Col: Vision */}
+            <div className="lg:col-span-5 space-y-6">
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="glass rounded-[40px] p-6">
+                <h4 className="text-xs font-bold mb-4 uppercase tracking-widest flex items-center gap-2 text-[#00d4ff]">
+                    <Search size={14} /> L5: Pathology Visualization
+                </h4>
+                <div className="grid gap-4">
+                    <div className="relative rounded-3xl overflow-hidden group border border-white/10">
+                        <img src={`data:image/jpeg;base64,${result.heatmap_b64}`} className="w-full" alt="Heatmap" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent p-6 flex flex-col justify-end">
+                            <span className="text-[10px] font-bold text-[#00ff9d] uppercase">Diagnostic Heatmap</span>
+                            <p className="text-[10px] text-slate-400">Grad-CAM++ Pathogenic Localization active.</p>
+                        </div>
+                    </div>
+                    <div className="relative rounded-3xl overflow-hidden border border-white/10 grayscale hover:grayscale-0 transition-all duration-500">
+                        <img src={imgUrl} className="w-full h-40 object-cover" alt="Original" />
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                            <span className="text-xs font-bold uppercase tracking-widest">Raw Input View</span>
+                        </div>
+                    </div>
+                </div>
+              </motion.div>
+
+              <button 
+                onClick={reset}
+                className="w-full py-6 rounded-[30px] bg-white/5 border border-white/10 hover:bg-white/10 transition-all font-black tracking-tighter uppercase text-lg italic"
+              >
+                Scan New Subject
+              </button>
+            </div>
+
+          </div>
+        )}
+
+      </main>
+
+      {/* Footer */}
+      <footer className="relative z-50 px-6 py-4 flex justify-between items-center border-t border-white/5 bg-black/20 text-[10px] font-mono text-slate-600">
+        <div className="flex gap-4">
+            <span>© 2026 TEAM NEXUS</span>
+            <span>RISING INDIA HACKATHON</span>
+        </div>
+        <div className="flex gap-4 items-center">
+            <span className="text-[#00ff9d] flex items-center gap-1">
+                <div className="w-1.5 h-1.5 bg-[#00ff9d] rounded-full animate-pulse" />
+                SYSTEM OPERATIONAL
+            </span>
+            <span>MODEL: BENAM_V2.0_ULTRA_11L</span>
+        </div>
       </footer>
     </div>
   );
