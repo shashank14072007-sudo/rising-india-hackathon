@@ -86,6 +86,14 @@ def get_recommendation(disease, severity, lang="en"):
     p = prefix.get(lang, "[URGENT] ") if severity in ["Quarantine", "Emergency"] else ""
     return p + rec
 
+import base64
+from utils.preprocessing import preprocess_image, overlay_heatmap
+
+def image_to_base64(image):
+    buffered = io.BytesIO()
+    image.save(buffered, format="JPEG")
+    return base64.b64encode(buffered.getvalue()).decode()
+
 @app.post("/predict")
 async def predict(file: UploadFile = File(...), lang: str = "en"):
     if not file.content_type.startswith("image/"):
@@ -99,6 +107,7 @@ async def predict(file: UploadFile = File(...), lang: str = "en"):
         input_tensor = torch.from_numpy(np.array(processed_img)).permute(2, 0, 1).float().unsqueeze(0) / 255.0
         input_tensor = input_tensor.to(device)
         
+        # 1. Prediction
         with torch.no_grad():
             output = model(input_tensor)
             
@@ -108,8 +117,12 @@ async def predict(file: UploadFile = File(...), lang: str = "en"):
         
         severity_val = output["severity"].item()
         severity_idx = int(severity_val * 3)
-        
         disease_name = CLASSES[pred_idx.item()]
+
+        # 2. Layer 5: Explainability (Grad-CAM)
+        heatmap = model.get_gradcam(input_tensor)
+        overlaid_img = overlay_heatmap(image, heatmap)
+        heatmap_base64 = image_to_base64(overlaid_img)
 
         return {
             "disease": disease_name,
@@ -117,7 +130,7 @@ async def predict(file: UploadFile = File(...), lang: str = "en"):
             "severity": SEVERITY_LEVELS[severity_idx],
             "severity_score": round(severity_val, 4),
             "recommendation": get_recommendation(disease_name, SEVERITY_LEVELS[severity_idx], lang),
-            "heatmaps": {"grad_cam": "https://example.com/mock-heatmap.jpg"}
+            "heatmap_b64": heatmap_base64
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

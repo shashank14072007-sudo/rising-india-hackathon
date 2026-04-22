@@ -31,13 +31,18 @@ def preprocess_image(image, target_size=(224, 224)):
     
     return resized
 
-def get_background_subtraction(image_path):
+def overlay_heatmap(image, heatmap, alpha=0.5):
     """
-    Stub for MOG2 background subtraction (used for CCTV/Drone streams).
+    Overlay Grad-CAM heatmap on the original image.
     """
-    backSub = cv2.createBackgroundSubtractorMOG2()
-    # In a real scenario, this would process a sequence of frames.
-    # For a single image, it's just a placeholder.
-    img = cv2.imread(image_path)
-    fgMask = backSub.apply(img)
-    return fgMask
+    img_array = np.array(image)
+    # Resize heatmap to match image size
+    heatmap_resized = cv2.resize(heatmap, (img_array.shape[1], img_array.shape[0]))
+    
+    # Convert heatmap to RGB (JET colormap)
+    heatmap_color = cv2.applyColorMap(np.uint8(255 * heatmap_resized), cv2.COLORMAP_JET)
+    heatmap_color = cv2.cvtColor(heatmap_color, cv2.COLOR_BGR2RGB)
+    
+    # Blend
+    overlaid = cv2.addWeighted(img_array, 1 - alpha, heatmap_color, alpha, 0)
+    return Image.fromarray(overlaid)

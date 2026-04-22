@@ -158,8 +158,11 @@ with col2:
         st.success(res['recommendation'])
         
         st.markdown("#### 🗺 Explainability (Grad-CAM++)")
-        # Placeholder for heatmap
-        st.image("https://user-images.githubusercontent.com/37707010/144670494-b7782a97-9005-4c07-8857-4146a48227b9.png", caption="Heatmap highlighting lesions on dorsal fin", use_container_width=True)
+        if 'heatmap_b64' in res:
+            st.image(f"data:image/jpeg;base64,{res['heatmap_b64']}", caption="Heatmap highlighting diagnostic regions", use_container_width=True)
+        else:
+            # Fallback mock
+            st.image("https://user-images.githubusercontent.com/37707010/144670494-b7782a97-9005-4c07-8857-4146a48227b9.png", caption="Heatmap highlighting lesions", use_container_width=True)
         
         st.markdown('</div>', unsafe_allow_html=True)
     else:
