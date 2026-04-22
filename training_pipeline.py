@@ -5,7 +5,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import transforms, datasets
 from tqdm import tqdm
-from models.dual_backbone import BenamNet
+from models.dual_backbone import BenamNetV2
 
 # %% [markdown]
 # ## 1. Augmentation Strategy (Layer 4)
@@ -60,7 +60,7 @@ def calculate_accuracy(outputs, targets):
 # %%
 def train_model():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Training BenamNet on {device}")
+    print(f"Training BenamNetV2 on {device}")
 
     # Check if data exists
     if not os.path.exists(TRAIN_DIR):
@@ -75,7 +75,7 @@ def train_model():
     val_loader = DataLoader(val_ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=2)
 
     num_classes = len(train_ds.classes)
-    model = BenamNet(num_classes=num_classes).to(device)
+    model = BenamNetV2(num_classes=num_classes).to(device)
     
     optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-2)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=NUM_EPOCHS)
