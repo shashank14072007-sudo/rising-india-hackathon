@@ -1,34 +1,32 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-:root {
-  background-color: #040a0f;
-  color: #eaf6ff;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+@theme {
+  --color-benam-accent: #00d4ff;
+  --color-benam-accent2: #00ff9d;
+  --color-benam-urgent: #ff4d4d;
 }
 
-body {
-  margin: 0;
-  overflow-x: hidden;
+@layer base {
+  body {
+    background-color: #040a0f;
+    color: #eaf6ff;
+    margin: 0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
 }
 
-.glass {
-  background: rgba(10, 21, 32, 0.4);
-  backdrop-filter: blur(12px);
+@utility glass {
+  background: rgba(10, 21, 32, 0.6);
+  backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
 
-.glow-blue {
-  box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
+@utility glow-blue {
+  box-shadow: 0 0 30px rgba(0, 212, 255, 0.15);
 }
 
-.glow-green {
-  box-shadow: 0 0 20px rgba(0, 255, 157, 0.2);
-}
-
-.text-gradient {
+@utility text-gradient {
   background: linear-gradient(90deg, #00d4ff, #00ff9d);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
