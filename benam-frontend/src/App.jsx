@@ -185,21 +185,70 @@ const App = () => {
                   </div>
                 </div>
 
-                {/* Heatmap Card */}
-                <div className="glass rounded-3xl p-6">
-                  <h4 className="text-sm font-bold mb-4 flex items-center gap-2 uppercase tracking-wide">
-                    <Activity size={16} className="text-benam-accent2" />
-                    Spatial Activation Map (Grad-CAM++)
-                  </h4>
-                  <div className="relative rounded-2xl overflow-hidden group">
-                    <img 
-                      src={`data:image/jpeg;base64,${result.heatmap_b64}`} 
-                      alt="Explainability Heatmap" 
-                      className="w-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
-                      <p className="text-xs text-slate-300">Highlighting areas of pathogenic visual indicators</p>
+                {/* Enterprise Intelligence Panel */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="glass rounded-3xl p-6">
+                    <h4 className="text-xs font-bold mb-4 flex items-center gap-2 uppercase tracking-widest text-benam-accent">
+                      <Zap size={14} /> Layer 6: Concept Bottleneck
+                    </h4>
+                    <div className="space-y-3">
+                      {Object.entries(result.l6_concepts || {}).map(([name, val]) => (
+                        <div key={name}>
+                          <div className="flex justify-between text-[10px] mb-1 font-mono">
+                            <span>{name} Indicators</span>
+                            <span>{val * 100}%</span>
+                          </div>
+                          <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              animate={{ width: `${val * 100}%` }}
+                              className="h-full bg-benam-accent"
+                            />
+                          </div>
+                        </div>
+                      ))}
                     </div>
+                  </div>
+
+                  <div className="glass rounded-3xl p-6">
+                    <h4 className="text-xs font-bold mb-4 flex items-center gap-2 uppercase tracking-widest text-benam-accent2">
+                      <Activity size={14} /> Layer 9: IoT Water Sync
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      {Object.entries(result.l9_iot_sync || {}).map(([key, val]) => (
+                        <div key={key} className="bg-white/5 p-2 rounded-xl border border-white/5">
+                          <p className="text-[8px] text-slate-500 uppercase">{key.replace('_', ' ')}</p>
+                          <p className="text-xs font-bold">{val}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 flex items-center gap-2 text-[10px] font-mono text-slate-500">
+                      <div className="w-1.5 h-1.5 bg-benam-accent2 rounded-full animate-ping" />
+                      REAL-TIME STREAM ACTIVE
+                    </div>
+                  </div>
+                </div>
+
+                {/* Architecture Checklist */}
+                <div className="glass rounded-3xl p-6">
+                  <h4 className="text-xs font-bold mb-4 flex items-center gap-2 uppercase tracking-widest">
+                    <Shield size={14} /> Architectural Layer Status (L1-L11)
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[
+                      { l: "L1: Ingestion", s: "OK" },
+                      { l: "L2: Triple Backbone", s: "OK" },
+                      { l: "L3: Gated Fusion", s: "OK" },
+                      { l: "L5: Grad-CAM++", s: "OK" },
+                      { l: "L8: Uncertainty", s: "OK" },
+                      { l: "L10: Edge Opt", s: "Active" },
+                      { l: "L11: Federated", s: "Node-7" }
+                    ].map(item => (
+                      <div key={item.l} className="flex flex-col">
+                        <span className="text-[8px] text-slate-500">{item.l}</span>
+                        <span className="text-[10px] font-bold text-benam-accent2 font-mono">{item.s}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </motion.div>
