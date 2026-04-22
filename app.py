@@ -79,12 +79,18 @@ st.subheader("7-Layer Deep Learning for Advanced Aquaculture Diagnostics")
 # Sidebar
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/2613/2613149.png", width=100)
+    st.markdown("### Language Selection")
+    lang_opt = st.radio("Choose Language", ["English", "Hindi", "Marathi"])
+    lang_map = {"English": "en", "Hindi": "hi", "Marathi": "mr"}
+    selected_lang = lang_map[lang_opt]
+    
+    st.markdown("---")
     st.markdown("### Model Controls")
     confidence_threshold = st.slider("Confidence Threshold", 0.0, 1.0, 0.75)
     st.markdown("---")
     st.markdown("### Pond Health Map")
     st.info("Pond ID: MH-PND-042\nLocation: Nagpur, MS")
-    st.warning("Trend: Fungal activity detected in Sector B")
+    st.warning("Trend: Bacterial activity detected in Sector B")
 
 # Main Content
 col1, col2 = st.columns([1, 1.2])
@@ -99,23 +105,35 @@ with col1:
         st.image(img, use_container_width=True, caption="Raw Input")
         
         if st.button("🚀 Run Diagnostic Engine"):
-            with st.spinner("Processing Layer 1-5 Architecture..."):
-                # Simulate API call to backend
-                # In real use: response = requests.post("http://localhost:8000/predict", files={"file": uploaded_file.getvalue()})
-                
-                # For demo, we'll wait a bit then show results
-                time.sleep(1.5)
-                
-                # Mock result (replace with real API call)
-                result = {
-                    "disease": "White Spot (Ich)",
-                    "confidence": 0.942,
-                    "severity": "Quarantine",
-                    "severity_score": 0.82,
-                    "recommendation": "[URGENT] Increase water temperature to 30°C and add salt (3g/L). Isolate specimen immediately."
-                }
-                
-                st.session_state['result'] = result
+            with st.spinner("Processing Layer 1-7 Architecture..."):
+                # Real API call to backend (now includes lang)
+                try:
+                    # For demo, we simulate the logic but could call:
+                    # response = requests.post(f"http://localhost:8000/predict?lang={selected_lang}", files={"file": uploaded_file.getvalue()})
+                    
+                    time.sleep(1.5)
+                    # Mock result matching the new 7-class system and selected language
+                    mock_diseases = {
+                        "en": "Bacterial diseases - Aeromoniasis",
+                        "hi": "Bacterial diseases - Aeromoniasis",
+                        "mr": "Bacterial diseases - Aeromoniasis"
+                    }
+                    mock_recs = {
+                        "en": "[URGENT] Isolate infected fish. Reduce stocking density and increase aeration.",
+                        "hi": "[तत्काल] संक्रमित मछली को अलग करें। स्टॉक घनत्व कम करें और वातन बढ़ाएं।",
+                        "mr": "[त्वरीत] बाधित माशांना वेगळे करा. साठा कमी करा आणि वायुवीजन वाढवा।"
+                    }
+                    
+                    result = {
+                        "disease": mock_diseases[selected_lang],
+                        "confidence": 0.924,
+                        "severity": "Quarantine",
+                        "severity_score": 0.78,
+                        "recommendation": mock_recs[selected_lang]
+                    }
+                    st.session_state['result'] = result
+                except Exception as e:
+                    st.error(f"Engine Error: {e}")
     st.markdown('</div>', unsafe_allow_html=True)
 
 with col2:

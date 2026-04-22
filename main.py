@@ -40,24 +40,65 @@ SEVERITY_LEVELS = ["Mild", "Moderate", "Quarantine", "Emergency"]
 async def health_check():
     return {"status": "operational", "model": "BenamNet-v1 (Dual Backbone)"}
 
+def get_recommendation(disease, severity, lang="en"):
+    """
+    Layer 7: Disease Knowledge Graph + RAG recommendations with Localization.
+    """
+    recommendations = {
+        "en": {
+            "Healthy Fish": "Continue regular water quality monitoring. Maintain optimal feeding schedules.",
+            "Bacterial Red disease": "Improve water quality immediately. Consider oxytetracycline medicated feed.",
+            "Bacterial diseases - Aeromoniasis": "Isolate infected fish. Reduce stocking density and increase aeration.",
+            "Bacterial gill disease": "Clean pond filters. Use salt baths (1-3%) and check for high ammonia.",
+            "Fungal diseases Saprolegniasis": "Remove organic debris. Apply antifungal treatments like Salt.",
+            "Parasitic diseases": "Identify specific parasite. Use Praziquantel or targeted parasiticides.",
+            "Viral diseases White tail disease": "Strict quarantine. prevent spread via strict biosecurity."
+        },
+        "hi": {
+            "Healthy Fish": "नियमित जल गुणवत्ता निगरानी जारी रखें। उचित आहार कार्यक्रम बनाए रखें।",
+            "Bacterial Red disease": "पानी की गुणवत्ता में तुरंत सुधार करें। दवायुक्त आहार पर विचार करें।",
+            "Bacterial diseases - Aeromoniasis": "संक्रमित मछली को अलग करें। स्टॉक घनत्व कम करें और वातन बढ़ाएं।",
+            "Bacterial gill disease": "तालाब के फिल्टर साफ करें। नमक के घोल (1-3%) का प्रयोग करें।",
+            "Fungal diseases Saprolegniasis": "जैविक कचरा हटाएं। नमक जैसे कवकनाशी उपचार लागू करें।",
+            "Parasitic diseases": "विशिष्ट परजीवी की पहचान करें। लक्षित परजीवीनाशकों का उपयोग करें।",
+            "Viral diseases White tail disease": "सख्त क्वारंटाइन। जैव सुरक्षा के माध्यम से प्रसार को रोकें।"
+        },
+        "mr": {
+            "Healthy Fish": "नियमित पाणी गुणवत्ता देखरेख सुरू ठेवा. योग्य आहार वेळापत्रक पाळा.",
+            "Bacterial Red disease": "पाण्याची गुणवत्ता त्वरित सुधारा. औषधोपचारयुक्त खाद्याचा विचार करा.",
+            "Bacterial diseases - Aeromoniasis": "बाधित माशांना वेगळे करा. साठा कमी करा आणि वायुवीजन वाढवा.",
+            "Bacterial gill disease": "तलावाचे फिल्टर साफ करा. मिठाच्या पाण्याचा (1-3%) वापर करा.",
+            "Fungal diseases Saprolegniasis": "सेंद्रिय कचरा काढून टाका. मिठासारखे बुरशीनाशक उपचार लागू करा.",
+            "Parasitic diseases": "विशिष्ट परजीवी ओळखा. लक्ष्यित परजीवीनाशकांचा वापर करा.",
+            "Viral diseases White tail disease": "कडक क्वारंटाइन. जैवसुरक्षेद्वारे प्रसार रोखा."
+        }
+    }
+    
+    selected_lang = recommendations.get(lang, recommendations["en"])
+    rec = selected_lang.get(disease, "Consult a veterinarian.")
+    
+    prefix = {
+        "en": "[URGENT] ",
+        "hi": "[तत्काल] ",
+        "mr": "[त्वरीत] "
+    }
+    
+    p = prefix.get(lang, "[URGENT] ") if severity in ["Quarantine", "Emergency"] else ""
+    return p + rec
+
 @app.post("/predict")
-async def predict(file: UploadFile = File(...)):
+async def predict(file: UploadFile = File(...), lang: str = "en"):
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Invalid file type")
 
     try:
-        # Load image
         contents = await file.read()
         image = Image.open(io.BytesIO(contents)).convert("RGB")
-        
-        # Layer 1: Preprocessing
         processed_img = preprocess_image(image)
         
-        # Convert to tensor
         input_tensor = torch.from_numpy(np.array(processed_img)).permute(2, 0, 1).float().unsqueeze(0) / 255.0
         input_tensor = input_tensor.to(device)
         
-        # Layer 2 & 3: Inference
         with torch.no_grad():
             output = model(input_tensor)
             
@@ -66,40 +107,20 @@ async def predict(file: UploadFile = File(...)):
         conf, pred_idx = torch.max(probs, dim=1)
         
         severity_val = output["severity"].item()
-        severity_idx = int(severity_val * 3) # Map 0-1 to 0-3
+        severity_idx = int(severity_val * 3)
         
-        # Mocking Grad-CAM heatmaps for now (Layer 5)
-        # In a real implementation, we'd use the model's hook to get heatmaps.
-        heatmap_url = "https://example.com/mock-heatmap.jpg" 
+        disease_name = CLASSES[pred_idx.item()]
 
         return {
-            "disease": CLASSES[pred_idx.item()],
+            "disease": disease_name,
             "confidence": round(conf.item(), 4),
             "severity": SEVERITY_LEVELS[severity_idx],
             "severity_score": round(severity_val, 4),
-            "recommendation": get_recommendation(CLASSES[pred_idx.item()], SEVERITY_LEVELS[severity_idx]),
-            "heatmaps": {
-                "grad_cam": heatmap_url
-            }
+            "recommendation": get_recommendation(disease_name, SEVERITY_LEVELS[severity_idx], lang),
+            "heatmaps": {"grad_cam": "https://example.com/mock-heatmap.jpg"}
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-def get_recommendation(disease, severity):
-    """
-    Layer 7: Disease Knowledge Graph + RAG recommendations.
-    """
-    recommendations = {
-        "Healthy Fish": "Continue regular water quality monitoring. Maintain optimal feeding schedules.",
-        "Bacterial Red disease": "Improve water quality immediately. Consider oxytetracycline medicated feed under guidance.",
-        "Bacterial diseases - Aeromoniasis": "Isolate infected fish. Reduce stocking density and increase aeration.",
-        "Bacterial gill disease": "Clean pond filters. Use salt baths (1-3%) and check for high ammonia levels.",
-        "Fungal diseases Saprolegniasis": "Remove organic debris. Apply antifungal treatments like Malachite Green (where legal) or Salt.",
-        "Parasitic diseases": "Identify specific parasite (Lice, Ich, etc.). Use Praziquantel or targeted parasiticides.",
-        "Viral diseases White tail disease": "Strict quarantine. No known cure for many viral diseases; prevent spread via biosecurity."
-    }
-    prefix = "[URGENT] " if severity in ["Quarantine", "Emergency"] else ""
-    return prefix + recommendations.get(disease, "Consult a veterinarian for specific diagnosis.")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
