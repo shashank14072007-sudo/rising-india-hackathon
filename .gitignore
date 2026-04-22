@@ -1,0 +1,27 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Data and Models
+data/
+Freshwater Fish Disease Aquaculture in south asia/
+*.pth
+*.tflite
+*.onnx
+
+# Environments
+.venv/
+env/
+venv/
+ENV/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Gemini/IDE artifacts
+.gemini/
+.idea/
+.vscode/
+implementation_plan.md
