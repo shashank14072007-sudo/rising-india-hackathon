@@ -121,7 +121,7 @@ def train_model():
         # Save Best Model
         if avg_val_acc > best_acc:
             best_acc = avg_val_acc
-            torch.save(model.state_state_dict(), "best_benam_model.pth")
+            torch.save(model.state_dict(), "best_benam_model.pth")
             print("New Best Model Saved!")
 
         scheduler.step()
