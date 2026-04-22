@@ -108,34 +108,14 @@ with col1:
             with st.spinner("Processing Layer 1-7 Architecture..."):
                 # Real API call to backend (now includes lang)
                 try:
-                    # For demo, we simulate the logic but could call:
-                    # response = requests.post(f"http://localhost:8000/predict?lang={selected_lang}", files={"file": uploaded_file.getvalue()})
-                    
-                    time.sleep(1.5)
-                    # Mock result matching the new 7-class system and selected language
-                    mock_diseases = {
-                        "en": "Bacterial diseases - Aeromoniasis",
-                        "hi": "Bacterial diseases - Aeromoniasis",
-                        "mr": "Bacterial diseases - Aeromoniasis"
-                    }
-                    mock_recs = {
-                        "en": "[URGENT] Isolate infected fish. Reduce stocking density and increase aeration.",
-                        "hi": "[तत्काल] संक्रमित मछली को अलग करें। स्टॉक घनत्व कम करें और वातन बढ़ाएं।",
-                        "mr": "[त्वरीत] बाधित माशांना वेगळे करा. साठा कमी करा आणि वायुवीजन वाढवा।"
-                    }
-                    
-                    result = {
-                        "disease": mock_diseases[selected_lang],
-                        "confidence": 0.924,
-                        "uncertainty": 0.042,
-                        "severity": "Quarantine",
-                        "severity_score": 0.78,
-                        "recommendation": mock_recs[selected_lang],
-                        "architecture": "BenamNet v2.0 (Triple Backbone)"
-                    }
-                    st.session_state['result'] = result
+                    import requests
+                    response = requests.post(f"http://localhost:8000/predict?lang={selected_lang}", files={"file": uploaded_file.getvalue()})
+                    if response.status_code == 200:
+                        st.session_state['result'] = response.json()
+                    else:
+                        st.error(f"Engine Error: {response.text}")
                 except Exception as e:
-                    st.error(f"Engine Error: {e}")
+                    st.error(f"Connection Error: Ensure backend is running at localhost:8000. Error: {e}")
     st.markdown('</div>', unsafe_allow_html=True)
 
 with col2:

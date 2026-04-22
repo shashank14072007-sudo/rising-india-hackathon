@@ -16,7 +16,7 @@ DATA_DIR = r"c:\Users\shash\OneDrive\Desktop\benam\Freshwater Fish Disease Aquac
 TRAIN_DIR = os.path.join(DATA_DIR, "Train")
 VAL_DIR = os.path.join(DATA_DIR, "Test")
 BATCH_SIZE = 32 # Increased for 7 classes
-NUM_EPOCHS = 30
+NUM_EPOCHS = 5
 LEARNING_RATE = 2e-4
 
 train_transform = transforms.Compose([
